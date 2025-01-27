@@ -1,13 +1,15 @@
 {
   "name": "chat-agent-101",
   "version": "1.0.0",
-  "description": "Chat agent using OpenAI API",
+  "description": "Chat agent using API",
   "main": "index.js",
   "scripts": {
     "start": "bun run example-usage.ts",
     "start:multiple": "bun run demo-multiple-tools.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "openai": "^4.80.1"
+  },
   "devDependencies": {
     "@types/node": "^22.10.10"
   }

@@ -1,5 +1,8 @@
+import { ChatCompletion, ChatCompletionMessageParam } from 'openai/resources/index.mjs';
 import { AVAILABLE_TOOLS } from './tools';
 import { AvailableToolNames } from './tools';
+import OpenAI from 'openai';
+import { ChatCompletionTool } from 'openai/src/resources/index.js';
 
 interface ChatAgentConfig {
   apiKey: string;
@@ -10,15 +13,17 @@ interface ChatAgentConfig {
 export class ChatAgent {
     private apiKey: string;
     private model: string;
-    private tools: ToolDefinition[];
-    private messages: Message[];
+    private tools: ChatCompletionTool[];
+    private messages: ChatCompletionMessageParam[];
+    private client: OpenAI;
   
     constructor(config: ChatAgentConfig) {
       this.apiKey = config.apiKey;
       this.model = config.model || 'gpt-4o-mini';
       this.tools = [];
       this.messages = [];
-      
+      this.client = new OpenAI({ apiKey: this.apiKey });
+
       if (config.tools) {
         config.tools.forEach(toolName => this.addTool(toolName));
       }
@@ -32,33 +37,21 @@ export class ChatAgent {
       });
     }
   
-    addMessage(message: Message) {
+    addMessage(message: ChatCompletionMessageParam) {
       this.messages.push(message);
     }
   
-    private async callOpenAI(): Promise<any> {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: this.messages,
-          tools: this.tools,
-          tool_choice: 'auto',
-        }),
+    private async callOpenAI(): Promise<ChatCompletion> {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: this.messages,
+        tools: this.tools,
       });
-  
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
-      }
-  
-      return response.json();
+
+      return response;
     }
   
-    private async processResponse(response: any): Promise<string> {
+    private async processResponse(response: ChatCompletion): Promise<string> {
       const message = response.choices[0].message;
   
       if (message.tool_calls) {
@@ -80,10 +73,10 @@ export class ChatAgent {
         );
   
         const finalResponse = await this.callOpenAI();
-        return finalResponse.choices[0].message.content;
+        return finalResponse.choices[0].message.content || '';
       }
   
-      return message.content;
+      return message.content || '';
     }
   
     private async executeTool(name: string, args: any): Promise<any> {
